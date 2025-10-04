@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body class="bg-light">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card mt-5">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h3>User Profile</h3>
+                        <button id="logoutBtn" class="btn btn-outline-danger">Logout</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="loadingMessage" class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p>Loading profile...</p>
+                        </div>
+                        
+                        <div id="profileContent" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h5>Personal Information</h5>
+                                    <table class="table table-borderless">
+                                        <tr>
+                                            <td><strong>ID:</strong></td>
+                                            <td id="userId"></td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Email:</strong></td>
+                                            <td id="userEmail"></td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Full Name:</strong></td>
+                                            <td id="userFullName"></td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Created At:</strong></td>
+                                            <td id="userCreatedAt"></td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Updated At:</strong></td>
+                                            <td id="userUpdatedAt"></td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <h5>Session Information</h5>
+                                    <table class="table table-borderless">
+                                        <tr>
+                                            <td><strong>Token Status:</strong></td>
+                                            <td><span class="badge bg-success">Active</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Expires In:</strong></td>
+                                            <td id="tokenExpiry"></td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="errorMessage" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // Check if user is logged in
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/auth/login';
+                return;
+            }
+
+            // Load user profile
+            loadUserProfile();
+
+            // Logout functionality
+            $('#logoutBtn').on('click', function() {
+                localStorage.removeItem('token');
+                localStorage.removeItem('expiresIn');
+                window.location.href = '/auth/login';
+            });
+        });
+
+        function loadUserProfile() {
+            const token = localStorage.getItem('token');
+            
+            $.ajax({
+                url: '/user/me',
+                type: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                },
+                success: function(user) {
+                    displayUserProfile(user);
+                },
+                error: function(xhr) {
+                    if (xhr.status === 401) {
+                        // Token expired or invalid
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('expiresIn');
+                        window.location.href = '/auth/login';
+                    } else {
+                        showError('Failed to load user profile');
+                    }
+                }
+            });
+        }
+
+        function displayUserProfile(user) {
+            $('#loadingMessage').hide();
+            
+            $('#userId').text(user.id || 'N/A');
+            $('#userEmail').text(user.email || 'N/A');
+            $('#userFullName').text(user.fullName || 'N/A');
+            $('#userCreatedAt').text(formatDate(user.createdAt));
+            $('#userUpdatedAt').text(formatDate(user.updatedAt));
+            
+            // Display token expiry
+            const expiresIn = localStorage.getItem('expiresIn');
+            if (expiresIn) {
+                $('#tokenExpiry').text(formatDuration(expiresIn));
+            } else {
+                $('#tokenExpiry').text('N/A');
+            }
+            
+            $('#profileContent').show();
+        }
+
+        function showError(message) {
+            $('#loadingMessage').hide();
+            $('#errorMessage').html('<div class="alert alert-danger">' + message + '</div>').show();
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        }
+
+        function formatDuration(milliseconds) {
+            const seconds = Math.floor(milliseconds / 1000);
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            return hours + 'h ' + minutes + 'm';
+        }
+    </script>
+</body>
+</html>
